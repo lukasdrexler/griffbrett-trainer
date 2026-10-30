@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Griffbrett-Trainer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: eine Spalte wie ein Übungsheft – Aufgabe oben, Griffbrett als Mittelpunkt, Messwerte und Einstellungen darunter */
+:root {
+  --bg: #eceeed; --surface: #ffffff; --fg: #1b2220; --muted: #5a6561; --line: #d3d9d6;
+  --accent: #a8691d; --accent-soft: #f3e4cf; --ok: #26804c; --ok-soft: #dcefe3; --bad: #b83c31; --bad-soft: #f6dedb;
+  --wood: #3b2519; --wood-edge: #2a1911; --fret: #c7cbd0; --string: #ddd2bd; --inlay: #ece5d6; --nut: #efe8d8;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Archivo", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111514; --surface: #1a1f1e; --fg: #e6eae8; --muted: #94a09b; --line: #2b3330;
+  --accent: #dba25a; --accent-soft: #3a2c1a; --ok: #4fc283; --ok-soft: #173325; --bad: #e86c60; --bad-soft: #3b1d1a;
+  --wood: #2e1d14; --wood-edge: #1f130d; --fret: #9fa4aa; --string: #c9bea9; --inlay: #d8d0bf; --nut: #d9d1c0;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #111514; --surface: #1a1f1e; --fg: #e6eae8; --muted: #94a09b; --line: #2b3330;
+  --accent: #dba25a; --accent-soft: #3a2c1a; --ok: #4fc283; --ok-soft: #173325; --bad: #e86c60; --bad-soft: #3b1d1a;
+  --wood: #2e1d14; --wood-edge: #1f130d; --fret: #9fa4aa; --string: #c9bea9; --inlay: #d8d0bf; --nut: #d9d1c0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+.pill { font-family: var(--mono); font-size: 0.75rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.pill.on { color: var(--ok); border-color: var(--ok); } .pill.on::before { background: var(--ok); }
+.pill.err { color: var(--bad); border-color: var(--bad); } .pill.err::before { background: var(--bad); }
+
+.modes { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; width: fit-content; max-width: 100%; flex-wrap: wrap; }
+.modes button { border: 0; background: transparent; color: var(--muted); font: 500 0.9rem var(--body); padding: 7px 14px; border-radius: 7px; cursor: pointer; }
+.modes button[aria-pressed="true"] { background: var(--accent-soft); color: var(--fg); }
+
+.task { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; }
+.prompt-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 2px; }
+.prompt { font-family: var(--display); font-weight: 700; font-size: clamp(2rem, 7vw, 3.2rem); line-height: 1.05; margin: 0; text-wrap: balance; }
+.prompt em { font-style: normal; color: var(--accent); }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+button.btn { font: 600 0.9rem var(--body); padding: 10px 16px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button.btn:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.feedback { min-height: 1.6em; font-weight: 600; margin: 0; }
+.feedback.ok { color: var(--ok); } .feedback.bad { color: var(--bad); } .feedback.info { color: var(--muted); font-weight: 500; }
+
+.board-scroll { overflow-x: auto; border-radius: 12px; -webkit-overflow-scrolling: touch; }
+.board-scroll svg { display: block; width: 100%; min-width: 620px; height: auto; }
+svg .hit { fill: transparent; cursor: pointer; }
+svg .hit:hover { fill: rgba(255,255,255,0.08); }
+svg .lbl { font: 600 13px var(--mono); fill: var(--muted); }
+svg .fretnum { font: 500 12px var(--mono); fill: var(--muted); }
+svg .mk text { font: 700 11px var(--body); fill: #fff; pointer-events: none; }
+svg .mk { pointer-events: none; }
+.notes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.notes button { font: 600 0.95rem var(--body); padding: 10px 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.notes button:hover { border-color: var(--accent); }
+
+.meter { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr); gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.heard-note { font-family: var(--display); font-size: 2.6rem; font-weight: 700; line-height: 1; }
+.heard-hz { font-family: var(--mono); color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.gauge { display: grid; gap: 10px; align-content: center; min-width: 0; }
+.gauge-row { display: grid; grid-template-columns: 4.5em 1fr; gap: 10px; align-items: center; font-size: 0.75rem; color: var(--muted); }
+.track { position: relative; height: 10px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.track .center { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.track .needle { position: absolute; top: -1px; bottom: -1px; width: 4px; margin-left: -2px; left: 50%; background: var(--accent); border-radius: 2px; transition: left 0.08s linear; }
+.track .level { height: 100%; width: 0; background: var(--ok); transition: width 0.06s linear; }
+.track .gate { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--muted); }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.stat { background: var(--surface); padding: 10px 14px; }
+.stat b { display: block; font: 600 1.4rem var(--mono); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+.settings { padding: 4px 16px 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+.field { display: grid; gap: 6px; font-size: 0.875rem; }
+.field > span { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.field select { font: inherit; padding: 7px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.checks label, .toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.note-box { font-size: 0.875rem; color: var(--muted); max-width: 70ch; margin: 0; }
+.note-box strong { color: var(--fg); }
+.flash-ok { animation: flash 0.6s ease; }
+@keyframes flash { 0% { background: var(--ok-soft); } 100% { background: transparent; } }
+@media (max-width: 620px) {
+  .task { grid-template-columns: 1fr; } .actions { justify-content: flex-start; }
+  .meter { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .notes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Griffbrett-Trainer</h1>
+    <span class="pill" id="micPill">Mikrofon aus</span>
+  </header>
+
+  <div class="modes" role="group" aria-label="Übungsmodus">
+    <button type="button" id="modeFind" aria-pressed="true">Ton finden</button>
+    <button type="button" id="modeName" aria-pressed="false">Position benennen</button>
+  </div>
+
+  <section class="task" id="taskBox">
+    <div>
+      <p class="prompt-label" id="promptLabel">Aufgabe</p>
+      <p class="prompt" id="prompt">–</p>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="micBtn">Mikrofon starten</button>
+      <button type="button" class="btn" id="revealBtn">Lösung zeigen</button>
+      <button type="button" class="btn" id="skipBtn">Nächste</button>
+    </div>
+  </section>
+
+  <p class="feedback info" id="feedback" aria-live="polite">Spiel den Ton auf der Gitarre oder tippe die Stelle auf dem Griffbrett an.</p>
+
+  <div class="board-scroll"><svg id="board" viewBox="0 0 1000 232" role="img" aria-label="Griffbrett, Bund 0 bis 12"></svg></div>
+
+  <div class="notes" id="noteButtons" hidden></div>
+
+  <section class="meter" aria-label="Erkannter Ton">
+    <div>
+      <p class="prompt-label">Gehört</p>
+      <div class="heard-note" id="heardNote">–</div>
+      <div class="heard-hz" id="heardHz">Mikrofon starten, um zu hören</div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-row"><span>Stimmung</span><div class="track"><div class="center"></div><div class="needle" id="needle"></div></div></div>
+      <div class="gauge-row"><span>Pegel</span><div class="track"><div class="level" id="level"></div><div class="gate" id="gateMark"></div></div></div>
+      <div class="gauge-row"><span></span><span id="centsText" style="font-family:var(--mono)">±0 Cent</span></div>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="Statistik">
+    <div class="stat"><b id="stOk">0</b><span>Richtig</span></div>
+    <div class="stat"><b id="stBad">0</b><span>Fehler</span></div>
+    <div class="stat"><b id="stStreak">0</b><span>Serie</span></div>
+    <div class="stat"><b id="stTime">–</b><span>Ø Zeit</span></div>
+  </section>
+
+  <details id="settingsBox">
+    <summary>Einstellungen</summary>
+    <div class="settings">
+      <div class="field"><span>Saiten</span><div class="checks" id="stringChecks"></div></div>
+      <label class="field"><span>Bünde</span>
+        <select id="fretRange">
+          <option value="0-5">0 – 5</option><option value="0-7">0 – 7</option>
+          <option value="5-9">5 – 9</option><option value="7-12">7 – 12</option>
+          <option value="0-12" selected>0 – 12</option>
+        </select></label>
+      <label class="field"><span>Notennamen</span>
+        <select id="lang"><option value="de">Deutsch (H, B = A♯)</option><option value="en">International (B)</option></select></label>
+      <label class="field"><span>Mikro-Empfindlichkeit</span>
+        <select id="sens"><option value="0.02">Niedrig (laute Umgebung)</option><option value="0.008" selected>Mittel</option><option value="0.003">Hoch (leise Gitarre)</option></select></label>
+      <div class="field"><span>Optionen</span>
+        <label class="toggle"><input type="checkbox" id="naturals"> Nur Stammtöne (ohne ♯/♭)</label>
+        <label class="toggle"><input type="checkbox" id="strict" checked> Oktave muss stimmen</label>
+      </div>
+    </div>
+  </details>
+
+  <p class="note-box" id="micHelp"><strong>So funktioniert's:</strong> Bei „Ton finden“ suchst du die Note auf der angegebenen Saite. Bei „Position benennen“ spielst du den markierten Ton oder tippst den Notennamen an. Das Mikrofon erkennt die Tonhöhe, aber nicht die Saite. Darum ist jede Aufgabe an eine Saite gebunden, und die Oktave legt die Stelle fest.</p>
+</div>
+
+<script>
+// PITCH-START
+// YIN-Tonhöhenerkennung (de Cheveigné & Kawahara 2002) auf einem Mono-Puffer.
+function detectPitch(buf, sr, minF = 70, maxF = 1400, threshold = 0.15) {
+  const tauMin = Math.max(2, Math.floor(sr / maxF));
+  const tauMax = Math.min(Math.floor(sr / minF), Math.floor(buf.length / 2));
+  const W = buf.length - tauMax;
+  const cmnd = new Float32Array(tauMax + 1);
+  cmnd[0] = 1;
+  let running = 0;
+  for (let tau = 1; tau <= tauMax; tau++) {
+    let sum = 0;
+    for (let i = 0; i < W; i++) { const d = buf[i] - buf[i + tau]; sum += d * d; }
+    running += sum;
+    cmnd[tau] = running > 0 ? sum * tau / running : 1;
+  }
+  let tau = -1;
+  for (let t = tauMin; t <= tauMax; t++) {
+    if (cmnd[t] < threshold) {
+      while (t + 1 <= tauMax && cmnd[t + 1] < cmnd[t]) t++;
+      tau = t; break;
+    }
+  }
+  if (tau < 0) return null;
+  const a = cmnd[tau - 1], b = cmnd[tau], c = tau < tauMax ? cmnd[tau + 1] : b;
+  const denom = a + c - 2 * b;
+  const shift = denom !== 0 ? (a - c) / (2 * denom) : 0;
+  return { freq: sr / (tau + shift), clarity: 1 - b };
+}
+// PITCH-END
+
+const OPEN = [40, 45, 50, 55, 59, 64]; // MIDI: E2 A2 D3 G3 H3 E4, Index 0 = tiefe E-Saite
+const NAMES = {
+  de: { short: ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','B','H'], full: ['C','C♯ / D♭','D','D♯ / E♭','E','F','F♯ / G♭','G','G♯ / A♭','A','A♯ / B','H'] },
+  en: { short: ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'], full: ['C','C♯ / D♭','D','D♯ / E♭','E','F','F♯ / G♭','G','G♯ / A♭','A','A♯ / B♭','B'] }
+};
+const NATURAL = [true,false,true,false,true,true,false,true,false,true,false,true];
+const STABLE_MS = 90;
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('gbt.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('gbt.' + k, JSON.stringify(v)); } catch {} }
+};
+
+const settings = Object.assign({ mode: 'find', strings: [true,true,true,true,true,true], range: '0-12', lang: 'de', sens: '0.008', naturals: false, strict: true }, store.get('settings', {}));
+const stats = { ok: 0, bad: 0, streak: 0, times: [] };
+let task = null, prevTask = null, locked = false;
+
+const pc = m => ((m % 12) + 12) % 12;
+const noteName = m => NAMES[settings.lang].short[pc(m)] + (Math.floor(m / 12) - 1);
+const stringName = s => ['tiefe E', 'A', 'D', 'G', settings.lang === 'de' ? 'H' : 'B', 'hohe e'][s];
+const rangeBounds = () => settings.range.split('-').map(Number);
+
+// ---------- Griffbrett ----------
+const LBL = 34, NUT = LBL + 48, END = 990, TOP = 26, GAP = 34;
+const fx = n => NUT + (END - NUT) * (1 - Math.pow(2, -n / 12)) / 0.5;
+const cellX = f => f === 0 ? (LBL + NUT) / 2 - 2 : (fx(f - 1) + fx(f)) / 2;
+const sy = s => TOP + (5 - s) * GAP;
+const svgNS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent) => { const e = document.createElementNS(svgNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+let markerLayer, dimLayer, stringEls = [];
+
+function buildBoard() {
+  const svg = $('board'); svg.innerHTML = '';
+  const yTop = sy(5) - GAP / 2, yBot = sy(0) + GAP / 2;
+  el('rect', { x: NUT, y: yTop, width: END - NUT, height: yBot - yTop, rx: 3, fill: 'var(--wood)', stroke: 'var(--wood-edge)', 'stroke-width': 2 }, svg);
+  const midY = (sy(2) + sy(3)) / 2;
+  [3, 5, 7, 9].forEach(f => el('circle', { cx: cellX(f), cy: midY, r: 7, fill: 'var(--inlay)', opacity: 0.85 }, svg));
+  el('circle', { cx: cellX(12), cy: (sy(1) + sy(2)) / 2, r: 7, fill: 'var(--inlay)', opacity: 0.85 }, svg);
+  el('circle', { cx: cellX(12), cy: (sy(3) + sy(4)) / 2, r: 7, fill: 'var(--inlay)', opacity: 0.85 }, svg);
+  for (let f = 1; f <= 12; f++) el('rect', { x: fx(f) - 1.5, y: yTop, width: 3, height: yBot - yTop, fill: 'var(--fret)' }, svg);
+  el('rect', { x: NUT - 6, y: yTop - 2, width: 7, height: yBot - yTop + 4, rx: 1.5, fill: 'var(--nut)' }, svg);
+  dimLayer = el('g', {}, svg);
+  stringEls = [];
+  for (let s = 0; s < 6; s++) {
+    stringEls[s] = el('line', { x1: LBL + 4, x2: END, y1: sy(s), y2: sy(s), stroke: 'var(--string)', 'stroke-width': 3.2 - s * 0.42 }, svg);
+    const t = el('text', { x: 4, y: sy(s) + 4.5, class: 'lbl' }, svg);
+    t.textContent = ['E', 'A', 'D', 'G', settings.lang === 'de' ? 'H' : 'B', 'e'][s];
+  }
+  for (let f = 0; f <= 12; f++) {
+    const t = el('text', { x: cellX(f), y: yBot + 20, class: 'fretnum', 'text-anchor': 'middle' }, svg);
+    t.textContent = f;
+  }
+  markerLayer = el('g', {}, svg);
+  for (let s = 0; s < 6; s++) for (let f = 0; f <= 12; f++) {
+    const x0 = f === 0 ? LBL : fx(f - 1), x1 = f === 0 ? NUT - 6 : fx(f);
+    const r = el('rect', { x: x0, y: sy(s) - GAP / 2, width: x1 - x0, height: GAP, class: 'hit' }, svg);
+    r.addEventListener('click', () => onTapFret(s, f));
+    const title = el('title', {}, r); title.textContent = `${stringName(s)}-Saite, Bund ${f}`;
+  }
+}
+
+function paintBoardState() {
+  dimLayer.innerHTML = '';
+  const [lo, hi] = rangeBounds();
+  for (let f = 0; f <= 12; f++) {
+    if (f >= lo && f <= hi) continue;
+    const x0 = f === 0 ? LBL : fx(f - 1), x1 = f === 0 ? NUT - 6 : fx(f);
+    el('rect', { x: x0, y: sy(5) - GAP / 2, width: x1 - x0, height: GAP * 6, fill: 'var(--bg)', opacity: 0.45 }, dimLayer);
+  }
+  stringEls.forEach((line, s) => {
+    const active = task && task.string === s;
+    line.setAttribute('stroke', active ? 'var(--accent)' : 'var(--string)');
+    line.setAttribute('opacity', !task || active || settings.mode === 'name' ? 1 : 0.45);
+  });
+}
+
+function clearMarkers() { markerLayer.innerHTML = ''; }
+function marker(s, f, color, label) {
+  const g = el('g', { class: 'mk' }, markerLayer);
+  el('circle', { cx: cellX(f), cy: sy(s), r: 13, fill: color, stroke: 'var(--wood-edge)', 'stroke-width': 1.5 }, g);
+  const t = el('text', { x: cellX(f), y: sy(s) + 4, 'text-anchor': 'middle' }, g);
+  t.textContent = label;
+}
+
+// ---------- Aufgaben ----------
+function candidates() {
+  const [lo, hi] = rangeBounds(), list = [];
+  settings.strings.forEach((on, s) => {
+    if (!on) return;
+    for (let f = lo; f <= hi; f++) {
+      const m = OPEN[s] + f;
+      if (settings.naturals && !NATURAL[pc(m)]) continue;
+      list.push({ string: s, fret: f, midi: m });
+    }
+  });
+  return list;
+}
+
+function newTask() {
+  const list = candidates();
+  if (!list.length) { task = null; $('prompt').textContent = 'Keine Saite gewählt'; $('sub').textContent = 'Wähle in den Einstellungen mindestens eine Saite.'; paintBoardState(); clearMarkers(); return; }
+  let pick, tries = 0;
+  do { pick = list[Math.floor(Math.random() * list.length)]; tries++; }
+  while (tries < 20 && task && pc(pick.midi) === pc(task.midi));
+  prevTask = task;
+  const [lo, hi] = rangeBounds();
+  // Im Modus "Ton finden" ist jede Stelle auf der Saite mit diesem Notennamen eine gültige Antwort (z. B. Bund 0 und 12).
+  const valid = [];
+  for (let f = lo; f <= hi; f++) if (pc(OPEN[pick.string] + f) === pc(pick.midi)) valid.push(f);
+  task = { ...pick, valid, start: performance.now(), tries: 0 };
+  locked = false;
+  renderTask();
+}
+
+function renderTask() {
+  clearMarkers(); paintBoardState();
+  const names = NAMES[settings.lang];
+  if (settings.mode === 'find') {
+    $('promptLabel').textContent = 'Finde den Ton';
+    $('prompt').innerHTML = `<em>${names.full[pc(task.midi)]}</em>`;
+    const [lo, hi] = rangeBounds();
+    $('sub').textContent = `auf der ${stringName(task.string)}-Saite · Bund ${lo}–${hi}`;
+    $('noteButtons').hidden = true;
+  } else {
+    $('promptLabel').textContent = 'Welcher Ton ist das?';
+    $('prompt').innerHTML = `<em>${stringName(task.string)}</em>-Saite, Bund ${task.fret}`;
+    $('sub').textContent = 'Spiel den markierten Ton oder tippe den Namen an.';
+    marker(task.string, task.fret, 'var(--accent)', '?');
+    $('noteButtons').hidden = false;
+  }
+  setFeedback('info', settings.mode === 'find' ? 'Spiel den Ton oder tippe die Stelle auf dem Griffbrett an.' : 'Spiel den markierten Ton.');
+}
+
+function setFeedback(kind, text) { const f = $('feedback'); f.className = 'feedback ' + kind; f.textContent = text; }
+
+function correct(how) {
+  if (locked) return;
+  locked = true;
+  const secs = (performance.now() - task.start) / 1000;
+  stats.ok++; stats.streak++; stats.times.push(secs); if (stats.times.length > 30) stats.times.shift();
+  clearMarkers();
+  const label = NAMES[settings.lang].short[pc(task.midi)];
+  if (settings.mode === 'find') task.valid.forEach(f => marker(task.string, f, 'var(--ok)', label));
+  else marker(task.string, task.fret, 'var(--ok)', label);
+  setFeedback('ok', `Richtig${how ? ' – ' + how : ''} · ${secs.toFixed(1)} s`);
+  $('taskBox').classList.remove('flash-ok'); void $('taskBox').offsetWidth; $('taskBox').classList.add('flash-ok');
+  renderStats();
+  setTimeout(newTask, 1100);
+}
+
+function wrong(text, mark) {
+  if (locked) return;
+  task.tries++; stats.bad++; stats.streak = 0;
+  if (mark) marker(mark.s, mark.f, 'var(--bad)', mark.label);
+  setFeedback('bad', text);
+  renderStats();
+}
+
+function renderStats() {
+  $('stOk').textContent = stats.ok; $('stBad').textContent = stats.bad; $('stStreak').textContent = stats.streak;
+  $('stTime').textContent = stats.times.length ? (stats.times.reduce((a, b) => a + b, 0) / stats.times.length).toFixed(1) + ' s' : '–';
+}
+
+// ---------- Antworten ----------
+function onTapFret(s, f) {
+  if (!task || locked || settings.mode !== 'find') return;
+  const label = NAMES[settings.lang].short[pc(OPEN[s] + f)];
+  if (s === task.string && task.valid.includes(f)) return correct('Bund ' + f);
+  if (s !== task.string) return wrong(`Das ist die ${stringName(s)}-Saite. Gesucht ist die ${stringName(task.string)}-Saite.`, { s, f, label });
+  wrong(`Bund ${f} ist ${NAMES[settings.lang].full[pc(OPEN[s] + f)]}.`, { s, f, label });
+}
+
+function onTapNote(p) {
+  if (!task || locked || settings.mode !== 'name') return;
+  if (p === pc(task.midi)) return correct();
+  wrong(`Nicht ${NAMES[settings.lang].full[p]}. Versuch's noch mal.`);
+}
+
+function onPlayed(midi) {
+  if (!task || locked) return;
+  // Ein noch klingender Ton der vorigen Aufgabe soll nicht als Fehler zählen.
+  if (prevTask && pc(midi) === pc(prevTask.midi) && performance.now() - task.start < 2000) return;
+  const target = settings.mode === 'find' ? task.valid.map(f => OPEN[task.string] + f) : [task.midi];
+  if (target.includes(midi)) return correct(noteName(midi) + ' gespielt');
+  const sameClass = pc(midi) === pc(task.midi);
+  if (sameClass && !settings.strict) return correct(noteName(midi) + ' gespielt');
+  const fOnString = midi - OPEN[task.string];
+  const [lo, hi] = rangeBounds();
+  const mark = fOnString >= lo && fOnString <= hi ? { s: task.string, f: fOnString, label: NAMES[settings.lang].short[pc(midi)] } : null;
+  if (sameClass) wrong(`${noteName(midi)}: richtiger Ton, aber falsche Oktave. Bleib auf der ${stringName(task.string)}-Saite.`, mark);
+  else wrong(`Gehört: ${noteName(midi)}. Versuch's noch mal.`, mark);
+}
+
+// ---------- Mikrofon ----------
+let ctx, analyser, stream, buf, dec, running = false;
+let cand = null, candSince = 0, evaluated = false, lastSound = 0;
+
+async function startMic() {
+  if (running) return stopMic();
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('unsupported');
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.resume();
+    analyser = ctx.createAnalyser(); analyser.fftSize = 4096;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    buf = new Float32Array(analyser.fftSize); dec = new Float32Array(analyser.fftSize / 2);
+    running = true;
+    $('micPill').className = 'pill on'; $('micPill').textContent = 'Mikrofon hört zu';
+    $('micBtn').textContent = 'Mikrofon stoppen';
+    $('heardHz').textContent = 'Spiel einen Ton';
+    try { await navigator.wakeLock?.request('screen'); } catch {}
+    requestAnimationFrame(loop);
+  } catch (e) {
+    $('micPill').className = 'pill err'; $('micPill').textContent = 'Kein Mikrofon';
+    const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+    setFeedback('bad', denied
+      ? 'Kein Zugriff auf das Mikrofon. In der Claude-Vorschau ist es gesperrt. Öffne die Seite direkt im Browser über https. Antippen funktioniert hier trotzdem.'
+      : 'Dieser Browser liefert kein Mikrofon. Öffne die Seite in Safari oder Chrome über https. Antippen funktioniert hier trotzdem.');
+  }
+}
+
+function stopMic() {
+  running = false;
+  stream?.getTracks().forEach(t => t.stop());
+  ctx?.close();
+  $('micPill').className = 'pill'; $('micPill').textContent = 'Mikrofon aus';
+  $('micBtn').textContent = 'Mikrofon starten';
+  showHeard(null);
+}
+
+function loop(t) {
+  if (!running) return;
+  requestAnimationFrame(loop);
+  analyser.getFloatTimeDomainData(buf);
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+  const rms = Math.sqrt(sum / buf.length), gate = Number(settings.sens);
+  $('level').style.width = Math.min(100, Math.sqrt(rms / 0.25) * 100) + '%';
+  if (rms < gate) return silence(t);
+  // Auf halbe Abtastrate reduzieren: der Gitarrenbereich endet weit unter 12 kHz, und YIN wird viermal schneller.
+  for (let i = 0; i < dec.length; i++) dec[i] = (buf[2 * i] + buf[2 * i + 1]) * 0.5;
+  const r = detectPitch(dec, ctx.sampleRate / 2);
+  if (!r) return silence(t);
+  lastSound = t;
+  const exact = 69 + 12 * Math.log2(r.freq / 440), midi = Math.round(exact), cents = (exact - midi) * 100;
+  showHeard(midi, r.freq, cents);
+  if (midi !== cand) { cand = midi; candSince = t; evaluated = false; }
+  else if (!evaluated && t - candSince >= STABLE_MS && Math.abs(cents) < 45) { evaluated = true; onPlayed(midi); }
+}
+
+function silence(t) {
+  if (t - lastSound > 160) { cand = null; evaluated = false; showHeard(null); }
+}
+
+function showHeard(midi, f, cents) {
+  if (midi == null) {
+    $('heardNote').textContent = '–';
+    if (running) $('heardHz').textContent = 'Stille';
+    $('needle').style.left = '50%'; $('centsText').textContent = '±0 Cent';
+    return;
+  }
+  $('heardNote').textContent = noteName(midi);
+  $('heardHz').textContent = f.toFixed(1) + ' Hz';
+  $('needle').style.left = (50 + Math.max(-50, Math.min(50, cents))) + '%';
+  $('centsText').textContent = (cents >= 0 ? '+' : '−') + Math.abs(cents).toFixed(0) + ' Cent';
+}
+
+// ---------- Einstellungen ----------
+function saveSettings() { store.set('settings', settings); }
+function syncSettingsUI() {
+  $('modeFind').setAttribute('aria-pressed', settings.mode === 'find');
+  $('modeName').setAttribute('aria-pressed', settings.mode === 'name');
+  $('fretRange').value = settings.range; $('lang').value = settings.lang; $('sens').value = settings.sens;
+  $('naturals').checked = settings.naturals; $('strict').checked = settings.strict;
+  $('gateMark').style.left = Math.min(100, Math.sqrt(Number(settings.sens) / 0.25) * 100) + '%';
+  const sc = $('stringChecks'); sc.innerHTML = '';
+  settings.strings.forEach((on, s) => {
+    const id = 'str' + s, lab = document.createElement('label');
+    lab.innerHTML = `<input type="checkbox" id="${id}" ${on ? 'checked' : ''}> ${['E', 'A', 'D', 'G', settings.lang === 'de' ? 'H' : 'B', 'e'][s]}`;
+    lab.querySelector('input').addEventListener('change', e => { settings.strings[s] = e.target.checked; saveSettings(); newTask(); });
+    sc.appendChild(lab);
+  });
+  const nb = $('noteButtons'); nb.innerHTML = '';
+  NAMES[settings.lang].full.forEach((n, p) => {
+    if (settings.naturals && !NATURAL[p]) return;
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = n;
+    b.addEventListener('click', () => onTapNote(p));
+    nb.appendChild(b);
+  });
+}
+
+function setMode(m) { settings.mode = m; saveSettings(); syncSettingsUI(); newTask(); }
+$('modeFind').addEventListener('click', () => setMode('find'));
+$('modeName').addEventListener('click', () => setMode('name'));
+$('micBtn').addEventListener('click', startMic);
+$('skipBtn').addEventListener('click', () => { if (task && !locked) stats.streak = 0; renderStats(); newTask(); });
+$('revealBtn').addEventListener('click', () => {
+  if (!task || locked) return;
+  locked = true; stats.streak = 0; renderStats(); clearMarkers();
+  const label = NAMES[settings.lang].short[pc(task.midi)];
+  if (settings.mode === 'find') task.valid.forEach(f => marker(task.string, f, 'var(--accent)', label));
+  else marker(task.string, task.fret, 'var(--accent)', label);
+  setFeedback('info', settings.mode === 'find' ? `Hier liegt ${NAMES[settings.lang].full[pc(task.midi)]}: Bund ${task.valid.join(' und ')}.` : `Das ist ${noteName(task.midi)}.`);
+  setTimeout(newTask, 2200);
+});
+$('fretRange').addEventListener('change', e => { settings.range = e.target.value; saveSettings(); newTask(); });
+$('lang').addEventListener('change', e => { settings.lang = e.target.value; saveSettings(); buildBoard(); syncSettingsUI(); renderTask(); });
+$('sens').addEventListener('change', e => { settings.sens = e.target.value; saveSettings(); syncSettingsUI(); });
+$('naturals').addEventListener('change', e => { settings.naturals = e.target.checked; saveSettings(); syncSettingsUI(); newTask(); });
+$('strict').addEventListener('change', e => { settings.strict = e.target.checked; saveSettings(); });
+
+buildBoard(); syncSettingsUI(); newTask(); renderStats();
+</script>
+</body>
+</html>
